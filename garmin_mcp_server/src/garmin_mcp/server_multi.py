@@ -144,4 +144,10 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
     host = os.getenv("HOST", "0.0.0.0")
     print(f"Iniciando Servidor Garmin MCP Multi-Usuario na porta {port}...", file=sys.stderr)
-    uvicorn.run(master_app, host=host, port=port)
+    uvicorn.run(
+        master_app,
+        host=host,
+        port=port,
+        proxy_headers=True,
+        forwarded_allow_ips="*",
+    )
