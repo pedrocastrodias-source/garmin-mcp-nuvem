@@ -88,6 +88,8 @@ def create_user_mcp_app(user_name, email, password, tokenstore_dir, tokens_base6
     activity_analysis.configure(garmin_client)
 
     app = FastMCP(f"Garmin Connect - {user_name}")
+    app.settings.transport_security.enable_dns_rebinding_protection = False
+    app.settings.transport_security.allowed_hosts = ["*"]
 
     # Registrar todas as ferramentas e recursos
     app = activity_management.register_tools(app)
