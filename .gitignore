@@ -1,0 +1,8 @@
+cloudflared.exe
+*.exe
+venv/
+.venv/
+__pycache__/
+*.pyc
+.garminconnect*/
+.git/
