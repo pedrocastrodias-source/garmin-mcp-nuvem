@@ -173,6 +173,16 @@ def get_master_app():
     pedro_sse = create_user_mcp_app("Pedro", pedro_email, pedro_pass, pedro_tokenstore, pedro_b64)
     laura_sse = create_user_mcp_app("Laura", laura_email, laura_pass, laura_tokenstore, laura_b64)
 
+    from starlette.middleware.base import BaseHTTPMiddleware
+
+    class PreventBufferingMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            response = await call_next(request)
+            response.headers["Cache-Control"] = "no-cache, no-transform"
+            response.headers["X-Accel-Buffering"] = "no"
+            response.headers["Connection"] = "keep-alive"
+            return response
+
     routes = [
         Route("/", endpoint=lambda r: PlainTextResponse("Servidor Garmin MCP Multi-Usuario (Pedro & Laura) ONLINE 24/7!")),
         Mount("/pedrogarminsolucao123", app=pedro_sse),
@@ -182,7 +192,9 @@ def get_master_app():
         Mount("/laura", app=laura_sse),
     ]
 
-    return Starlette(routes=routes)
+    master_app = Starlette(routes=routes)
+    master_app.add_middleware(PreventBufferingMiddleware)
+    return master_app
 
 master_app = get_master_app()
 
