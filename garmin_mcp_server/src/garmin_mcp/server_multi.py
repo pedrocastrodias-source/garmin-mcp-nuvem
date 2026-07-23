@@ -2,6 +2,9 @@ import os
 import sys
 import base64
 import uvicorn
+import contextvars
+import functools
+import inspect
 from starlette.applications import Starlette
 from starlette.routing import Mount, Route
 from starlette.responses import PlainTextResponse
@@ -27,6 +30,40 @@ from garmin_mcp import (
     courses,
     activity_analysis,
 )
+
+# ContextVar to hold the active client in the async/coroutine context
+current_garmin_client = contextvars.ContextVar("current_garmin_client", default=None)
+
+class GarminClientProxy:
+    """Proxy object that routes attribute/method access to the active context's client."""
+    def __getattr__(self, name):
+        client = current_garmin_client.get()
+        if client is None:
+            raise RuntimeError("No active Garmin client in this context")
+        return getattr(client, name)
+
+    def __bool__(self):
+        return current_garmin_client.get() is not None
+
+# Single global proxy instance used to configure all modules once
+client_proxy = GarminClientProxy()
+
+# Configure all modules to point to the proxy
+activity_management.configure(client_proxy)
+health_wellness.configure(client_proxy)
+user_profile.configure(client_proxy)
+devices.configure(client_proxy)
+gear_management.configure(client_proxy)
+weight_management.configure(client_proxy)
+challenges.configure(client_proxy)
+training.configure(client_proxy)
+workouts.configure(client_proxy)
+data_management.configure(client_proxy)
+womens_health.configure(client_proxy)
+nutrition.configure(client_proxy)
+workout_builders.configure(client_proxy)
+courses.configure(client_proxy)
+activity_analysis.configure(client_proxy)
 
 def init_user_api(email, password, tokenstore_dir, tokens_base64=None):
     """Inicializa cliente Garmin Connect para um usuario especifico."""
@@ -66,26 +103,32 @@ def init_user_api(email, password, tokenstore_dir, tokens_base64=None):
     print(f"AVISO: Cliente Garmin nao autenticado para '{tokenstore_dir}'. Servidor rodara normalmente.", file=sys.stderr)
     return None
 
+def wrap_app_tools(app, user_client):
+    """Wraps all tool functions on the app to set the active client context during execution."""
+    for tool_name, tool in app._tool_manager._tools.items():
+        original_fn = tool.fn
+        if inspect.iscoroutinefunction(original_fn):
+            @functools.wraps(original_fn)
+            async def wrapped_async(*args, **kwargs):
+                token = current_garmin_client.set(user_client)
+                try:
+                    return await original_fn(*args, **kwargs)
+                finally:
+                    current_garmin_client.reset(token)
+            tool.fn = wrapped_async
+        else:
+            @functools.wraps(original_fn)
+            def wrapped_sync(*args, **kwargs):
+                token = current_garmin_client.set(user_client)
+                try:
+                    return original_fn(*args, **kwargs)
+                finally:
+                    current_garmin_client.reset(token)
+            tool.fn = wrapped_sync
+
 def create_user_mcp_app(user_name, email, password, tokenstore_dir, tokens_base64=None):
     """Cria e configura o FastMCP app isolado para um usuario."""
-    garmin_client = init_user_api(email, password, tokenstore_dir, tokens_base64)
-
-    # Configurar modulos com o cliente do usuario
-    activity_management.configure(garmin_client)
-    health_wellness.configure(garmin_client)
-    user_profile.configure(garmin_client)
-    devices.configure(garmin_client)
-    gear_management.configure(garmin_client)
-    weight_management.configure(garmin_client)
-    challenges.configure(garmin_client)
-    training.configure(garmin_client)
-    workouts.configure(garmin_client)
-    data_management.configure(garmin_client)
-    womens_health.configure(garmin_client)
-    nutrition.configure(garmin_client)
-    workout_builders.configure(garmin_client)
-    courses.configure(garmin_client)
-    activity_analysis.configure(garmin_client)
+    user_client = init_user_api(email, password, tokenstore_dir, tokens_base64)
 
     app = FastMCP(f"Garmin Connect - {user_name}")
     app.settings.transport_security.enable_dns_rebinding_protection = False
@@ -108,6 +151,9 @@ def create_user_mcp_app(user_name, email, password, tokenstore_dir, tokens_base6
     app = courses.register_tools(app)
     app = activity_analysis.register_tools(app)
     app = workout_templates.register_resources(app)
+
+    # Wrap tool functions to route the global client proxy dynamically to the specific user client
+    wrap_app_tools(app, user_client)
 
     return app.sse_app()
 
