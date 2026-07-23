@@ -175,15 +175,29 @@ def get_master_app():
     pedro_sse = create_user_mcp_app("Pedro", pedro_email, pedro_pass, pedro_tokenstore, pedro_b64)
     laura_sse = create_user_mcp_app("Laura", laura_email, laura_pass, laura_tokenstore, laura_b64)
 
-    from starlette.middleware.base import BaseHTTPMiddleware
+    class PreventBufferingASGIMiddleware:
+        def __init__(self, app):
+            self.app = app
 
-    class PreventBufferingMiddleware(BaseHTTPMiddleware):
-        async def dispatch(self, request, call_next):
-            response = await call_next(request)
-            response.headers["Cache-Control"] = "no-cache, no-transform"
-            response.headers["X-Accel-Buffering"] = "no"
-            response.headers["Connection"] = "keep-alive"
-            return response
+        async def __call__(self, scope, receive, send):
+            if scope["type"] != "http":
+                await self.app(scope, receive, send)
+                return
+
+            async def send_wrapper(message):
+                if message["type"] == "http.response.start":
+                    headers = list(message.get("headers", []))
+                    header_keys = [k.lower() for k, v in headers]
+                    if b"cache-control" not in header_keys:
+                        headers.append((b"cache-control", b"no-cache, no-transform"))
+                    if b"x-accel-buffering" not in header_keys:
+                        headers.append((b"x-accel-buffering", b"no"))
+                    if b"connection" not in header_keys:
+                        headers.append((b"connection", b"keep-alive"))
+                    message["headers"] = headers
+                await send(message)
+
+            await self.app(scope, receive, send_wrapper)
 
     routes = [
         Route("/", endpoint=lambda r: PlainTextResponse("Servidor Garmin MCP Multi-Usuario (Pedro & Laura) ONLINE 24/7!")),
@@ -195,7 +209,7 @@ def get_master_app():
     ]
 
     master_app = Starlette(routes=routes)
-    master_app.add_middleware(PreventBufferingMiddleware)
+    master_app.add_middleware(PreventBufferingASGIMiddleware)
     return master_app
 
 master_app = get_master_app()
