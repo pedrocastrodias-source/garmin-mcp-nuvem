@@ -132,9 +132,10 @@ def create_user_mcp_app(user_name, email, password, tokenstore_dir, tokens_base6
     """Cria e configura o FastMCP app isolado para um usuario."""
     user_client = init_user_api(email, password, tokenstore_dir, tokens_base64)
 
+    import fastmcp
+    fastmcp.settings.http_host_origin_protection = False
+    fastmcp.settings.http_allowed_hosts = ["*"]
     app = FastMCP(f"Treinos {user_name}")
-    app.settings.transport_security.enable_dns_rebinding_protection = False
-    app.settings.transport_security.allowed_hosts = ["*"]
 
     # Registrar todas as ferramentas e recursos
     app = activity_management.register_tools(app)
