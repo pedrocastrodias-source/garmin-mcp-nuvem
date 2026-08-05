@@ -7,7 +7,7 @@ import sys
 import base64
 
 import requests
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 from garminconnect import Garmin, GarminConnectAuthenticationError, GarminConnectConnectionError, GarminConnectTooManyRequestsError
 

@@ -10,7 +10,7 @@ from starlette.routing import Mount, Route
 from starlette.responses import PlainTextResponse
 
 from garminconnect import Garmin, GarminConnectAuthenticationError, GarminConnectConnectionError, GarminConnectTooManyRequestsError
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 from garmin_mcp import (
     activity_management,
