@@ -125,8 +125,9 @@ def make_wrapped_tool_fn(original_fn, user_client):
 
 def wrap_app_tools(app, user_client):
     """Wraps all tool functions on the app to set the active client context during execution."""
-    for tool_name, tool in app._tool_manager._tools.items():
-        tool.fn = make_wrapped_tool_fn(tool.fn, user_client)
+    for key, component in app.local_provider._components.items():
+        if key.startswith("tool:"):
+            component.fn = make_wrapped_tool_fn(component.fn, user_client)
 
 def create_user_mcp_app(user_name, email, password, tokenstore_dir, tokens_base64=None):
     """Cria e configura o FastMCP app isolado para um usuario."""
