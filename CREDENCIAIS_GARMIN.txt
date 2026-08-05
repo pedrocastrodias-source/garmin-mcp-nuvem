@@ -1,0 +1,17 @@
+# ======================================================================
+# CONFIGURAÇÃO DE CREDENCIAIS GARMIN CONNECT (PEDRO & LAURA)
+# ======================================================================
+# Preencha seus e-mails e senhas da Garmin Connect abaixo.
+# O sistema usará esses dados para fazer o login automático no servidor!
+
+# --- CONTA DO PEDRO ---
+PEDRO_EMAIL=pedrocastrodias@gmail.com
+PEDRO_PASSWORD=Pel-171593
+
+# --- CONTA DA LAURA ---
+LAURA_EMAIL=laurasisdelli@gmail.com
+LAURA_PASSWORD=Hsc#180723
+
+# --- CONTA DO PAULO CESAR SISDELLI ---
+PAULOCESARSISDELLI_EMAIL=paulocsisdelli@gmail.com
+PAULOCESARSISDELLI_PASSWORD=Paulo993219921#
