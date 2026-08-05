@@ -159,7 +159,7 @@ def create_user_mcp_app(user_name, email, password, tokenstore_dir, tokens_base6
     # Wrap tool functions to route the global client proxy dynamically to the specific user client
     wrap_app_tools(app, user_client)
 
-    return app.sse_app()
+    return app.http_app()
 
 def get_master_app():
     """Cria a aplicacao mestre Starlette unindo Pedro, Laura e Paulo."""
