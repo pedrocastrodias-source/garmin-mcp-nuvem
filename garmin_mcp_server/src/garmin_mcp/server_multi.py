@@ -162,7 +162,7 @@ def create_user_mcp_app(user_name, email, password, tokenstore_dir, tokens_base6
     return app.http_app(transport="sse")
 
 def get_master_app():
-    """Cria a aplicacao mestre Starlette unindo Pedro, Laura e Paulo."""
+    """Cria a aplicacao mestre Starlette unindo Pedro, Laura, Paulo e Ana."""
     pedro_email = os.getenv("PEDRO_EMAIL") or os.getenv("GARMIN_EMAIL") or "pedrocastrodias@gmail.com"
     pedro_pass = os.getenv("PEDRO_PASSWORD") or os.getenv("GARMIN_PASSWORD") or "Pel-171593"
     pedro_b64 = os.getenv("PEDRO_TOKENS_BASE64")
@@ -175,13 +175,19 @@ def get_master_app():
     paulo_pass = os.getenv("PAULO_PASSWORD") or os.getenv("PAULOCESARSISDELLI_PASSWORD") or "Paulo993219921#"
     paulo_b64 = os.getenv("PAULO_TOKENS_BASE64")
 
+    ana_email = os.getenv("ANA_EMAIL") or os.getenv("ANALUIZARIBEIROCANDIDO_EMAIL") or "ribeiro.engamb@gmail.com"
+    ana_pass = os.getenv("ANA_PASSWORD") or os.getenv("ANALUIZARIBEIROCANDIDO_PASSWORD") or "Jose-1506"
+    ana_b64 = os.getenv("ANA_TOKENS_BASE64")
+
     pedro_tokenstore = os.getenv("PEDRO_TOKENSTORE") or "~/.garminconnect"
     laura_tokenstore = os.getenv("LAURA_TOKENSTORE") or "~/.garminconnect_laura"
     paulo_tokenstore = os.getenv("PAULO_TOKENSTORE") or "~/.garminconnect_paulo"
+    ana_tokenstore = os.getenv("ANA_TOKENSTORE") or "~/.garminconnect_ana"
 
     pedro_sse = create_user_mcp_app("Pedro", pedro_email, pedro_pass, pedro_tokenstore, pedro_b64)
     laura_sse = create_user_mcp_app("Laura", laura_email, laura_pass, laura_tokenstore, laura_b64)
     paulo_sse = create_user_mcp_app("Paulo", paulo_email, paulo_pass, paulo_tokenstore, paulo_b64)
+    ana_sse = create_user_mcp_app("Ana", ana_email, ana_pass, ana_tokenstore, ana_b64)
 
     class PreventBufferingASGIMiddleware:
         def __init__(self, app):
@@ -208,14 +214,16 @@ def get_master_app():
             await self.app(scope, receive, send_wrapper)
 
     routes = [
-        Route("/", endpoint=lambda r: PlainTextResponse("Servidor Garmin MCP Multi-Usuario (Pedro, Laura & Paulo) ONLINE 24/7!")),
+        Route("/", endpoint=lambda r: PlainTextResponse("Servidor Garmin MCP Multi-Usuario (Pedro, Laura, Paulo & Ana) ONLINE 24/7!")),
         Mount("/pedrogarminsolucao123", app=pedro_sse),
         Mount("/lauragarminsolucao123", app=laura_sse),
         Mount("/paulogarminsolucao123", app=paulo_sse),
+        Mount("/anagarminsolucao123", app=ana_sse),
         # Alias simples para facilidade de uso
         Mount("/pedro", app=pedro_sse),
         Mount("/laura", app=laura_sse),
         Mount("/paulo", app=paulo_sse),
+        Mount("/ana", app=ana_sse),
     ]
 
     master_app = Starlette(routes=routes)
