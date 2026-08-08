@@ -136,7 +136,7 @@ def create_user_mcp_app(user_name, email, password, tokenstore_dir, tokens_base6
     import fastmcp
     fastmcp.settings.http_host_origin_protection = False
     fastmcp.settings.http_allowed_hosts = ["*"]
-    app = FastMCP(f"Treinos {user_name}")
+    app = FastMCP(f"Atividades {user_name}")
 
     # Registrar todas as ferramentas e recursos
     app = activity_management.register_tools(app)
