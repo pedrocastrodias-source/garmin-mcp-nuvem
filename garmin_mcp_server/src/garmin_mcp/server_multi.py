@@ -5,6 +5,7 @@ import uvicorn
 import contextvars
 import functools
 import inspect
+from contextlib import asynccontextmanager
 from starlette.applications import Starlette
 from starlette.routing import Mount, Route
 from starlette.responses import PlainTextResponse
@@ -161,14 +162,11 @@ def create_user_mcp_app(user_name, email, password, tokenstore_dir, tokens_base6
     wrap_app_tools(app, user_client)
 
     sse_app = app.http_app(transport="sse")
+    http_app = app.http_app(transport="streamable-http")
 
-    async def sse_post_probe(request):
-        return PlainTextResponse("SSE Endpoint Active", status_code=200)
-
-    user_routes = list(sse_app.routes) + [
-        Route("/sse", endpoint=sse_post_probe, methods=["POST"]),
-    ]
-    return Starlette(routes=user_routes)
+    user_routes = list(sse_app.routes) + list(http_app.routes)
+    user_starlette = Starlette(routes=user_routes)
+    return app, http_app, user_starlette
 
 def get_master_app():
     """Cria a aplicacao mestre Starlette unindo Pedro, Laura, Paulo e Ana."""
@@ -193,10 +191,18 @@ def get_master_app():
     paulo_tokenstore = os.getenv("PAULO_TOKENSTORE") or "~/.garminconnect_paulo"
     ana_tokenstore = os.getenv("ANA_TOKENSTORE") or "~/.garminconnect_ana"
 
-    pedro_sse = create_user_mcp_app("Pedro", pedro_email, pedro_pass, pedro_tokenstore, pedro_b64)
-    laura_sse = create_user_mcp_app("Laura", laura_email, laura_pass, laura_tokenstore, laura_b64)
-    paulo_sse = create_user_mcp_app("Paulo", paulo_email, paulo_pass, paulo_tokenstore, paulo_b64)
-    ana_sse = create_user_mcp_app("Ana", ana_email, ana_pass, ana_tokenstore, ana_b64)
+    pedro_mcp, pedro_http, pedro_sub = create_user_mcp_app("Pedro", pedro_email, pedro_pass, pedro_tokenstore, pedro_b64)
+    laura_mcp, laura_http, laura_sub = create_user_mcp_app("Laura", laura_email, laura_pass, laura_tokenstore, laura_b64)
+    paulo_mcp, paulo_http, paulo_sub = create_user_mcp_app("Paulo", paulo_email, paulo_pass, paulo_tokenstore, paulo_b64)
+    ana_mcp, ana_http, ana_sub = create_user_mcp_app("Ana", ana_email, ana_pass, ana_tokenstore, ana_b64)
+
+    @asynccontextmanager
+    async def master_lifespan(app):
+        async with pedro_http.router.lifespan_context(pedro_http):
+            async with laura_http.router.lifespan_context(laura_http):
+                async with paulo_http.router.lifespan_context(paulo_http):
+                    async with ana_http.router.lifespan_context(ana_http):
+                        yield
 
     class PreventBufferingASGIMiddleware:
         def __init__(self, app):
@@ -224,18 +230,18 @@ def get_master_app():
 
     routes = [
         Route("/", endpoint=lambda r: PlainTextResponse("Servidor Garmin MCP Multi-Usuario (Pedro, Laura, Paulo & Ana) ONLINE 24/7!")),
-        Mount("/pedrogarminsolucao123", app=pedro_sse),
-        Mount("/lauragarminsolucao123", app=laura_sse),
-        Mount("/paulogarminsolucao123", app=paulo_sse),
-        Mount("/anagarminsolucao123", app=ana_sse),
+        Mount("/pedrogarminsolucao123", app=pedro_sub),
+        Mount("/lauragarminsolucao123", app=laura_sub),
+        Mount("/paulogarminsolucao123", app=paulo_sub),
+        Mount("/anagarminsolucao123", app=ana_sub),
         # Alias simples para facilidade de uso
-        Mount("/pedro", app=pedro_sse),
-        Mount("/laura", app=laura_sse),
-        Mount("/paulo", app=paulo_sse),
-        Mount("/ana", app=ana_sse),
+        Mount("/pedro", app=pedro_sub),
+        Mount("/laura", app=laura_sub),
+        Mount("/paulo", app=paulo_sub),
+        Mount("/ana", app=ana_sub),
     ]
 
-    master_app = Starlette(routes=routes)
+    master_app = Starlette(routes=routes, lifespan=master_lifespan)
     master_app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
