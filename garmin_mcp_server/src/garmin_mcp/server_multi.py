@@ -8,6 +8,7 @@ import inspect
 from starlette.applications import Starlette
 from starlette.routing import Mount, Route
 from starlette.responses import PlainTextResponse
+from starlette.middleware.cors import CORSMiddleware
 
 from garminconnect import Garmin, GarminConnectAuthenticationError, GarminConnectConnectionError, GarminConnectTooManyRequestsError
 from fastmcp import FastMCP
@@ -159,7 +160,11 @@ def create_user_mcp_app(user_name, email, password, tokenstore_dir, tokens_base6
     # Wrap tool functions to route the global client proxy dynamically to the specific user client
     wrap_app_tools(app, user_client)
 
-    return app.http_app(transport="sse")
+    sse_app = app.http_app(transport="sse")
+    http_app = app.http_app(transport="streamable-http")
+
+    combined_routes = list(sse_app.routes) + list(http_app.routes)
+    return Starlette(routes=combined_routes)
 
 def get_master_app():
     """Cria a aplicacao mestre Starlette unindo Pedro, Laura, Paulo e Ana."""
@@ -227,6 +232,13 @@ def get_master_app():
     ]
 
     master_app = Starlette(routes=routes)
+    master_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+        allow_credentials=True,
+    )
     master_app.add_middleware(PreventBufferingASGIMiddleware)
     return master_app
 
