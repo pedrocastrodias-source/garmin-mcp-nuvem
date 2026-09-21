@@ -161,10 +161,14 @@ def create_user_mcp_app(user_name, email, password, tokenstore_dir, tokens_base6
     wrap_app_tools(app, user_client)
 
     sse_app = app.http_app(transport="sse")
-    http_app = app.http_app(transport="streamable-http")
 
-    combined_routes = list(sse_app.routes) + list(http_app.routes)
-    return Starlette(routes=combined_routes)
+    async def sse_post_probe(request):
+        return PlainTextResponse("SSE Endpoint Active", status_code=200)
+
+    user_routes = list(sse_app.routes) + [
+        Route("/sse", endpoint=sse_post_probe, methods=["POST"]),
+    ]
+    return Starlette(routes=user_routes)
 
 def get_master_app():
     """Cria a aplicacao mestre Starlette unindo Pedro, Laura, Paulo e Ana."""
